@@ -327,6 +327,8 @@ def Tweb(arr, ngrid, lbox):
 @njit(parallel=True, cache=True, fastmath=True)
 def RankOrder(ngrid, arrin, arrtg):
 
+    arrin = arrin.flatten()
+
     # Prepare the fields
     arrtg_cp = arrtg.copy()
     arrtg_cp = np.sort(arrtg_cp)
@@ -338,7 +340,9 @@ def RankOrder(ngrid, arrin, arrtg):
     for ii in prange(ngrid**3):
 
         arrin_new[arrin_ind[ii]] = arrtg_cp[ii]
-
+    
+    arrin_new = np.reshape(arrin_new, (ngrid,ngrid,ngrid))
+    
     return arrin_new
 
 # **********************************************
@@ -547,7 +551,7 @@ def GetCic(posx, posy, posz, weight, lbox, ngrid):
 
 # **********************************************
 @njit(parallel=False, cache=True, fastmath=True)
-def DisplaceParticles(posx, posy, posz, psix, psiy, psiz, ff, bb, reconmode):
+def DisplaceParticles(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
 
     # CONVENTION: the Zel'dovich displacement have been computed in the forward direction, hence we will subtract them 
 
@@ -596,7 +600,7 @@ def DisplaceParticles(posx, posy, posz, psix, psiy, psiz, ff, bb, reconmode):
 
 # **********************************************
 @njit(parallel=False, cache=True, fastmath=True)
-def DisplaceRandoms(posx, posy, posz, psix, psiy, psiz, ff, bb, reconmode):
+def DisplaceRandoms(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
 
     # CONVENTION: the Zel'dovich displacement have been computed in the forward direction, hence we will subtract them  
     
@@ -697,11 +701,11 @@ print('')
 
 # Displace true "particles" (i.e. pixels)
 print('Applying the displacemets backward in time and computing the reconstructed field ...')
-xd, yd, zd = DisplaceParticles()
+xd, yd, zd = DisplaceParticles(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode)
 deltad = GetCic(xd, yd, zd, tau, lbox, ngrid)
 
 # Displace random particles
-xs, ys, zs = DisplaceRandoms()
+xs, ys, zs = DisplaceRandoms(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode)
 deltas = GetCic(xs, ys, zs, tau, lbox, ngrid)
 
 # Compute reconstructed density
