@@ -150,7 +150,7 @@ def k_squared(lbox,ngrid,ii,jj,kk):
 
 # **********************************************
 @njit(parallel=True, cache=True)
-def gradfindiff(lbox,ngrid,arr,dim):
+def GradFinDiff(lbox,ngrid,arr,dim):
 
     fac = ngrid/(2*lbox)
 
@@ -271,24 +271,24 @@ def Tweb(arr, ngrid, lbox):
 
     # X DIRECTION
     # 1st deriv
-    grad = gradfindiff(lbox,ngrid,arr,1)
+    grad = GradFinDiff(lbox,ngrid,arr,1)
     #2nd derivs
-    gradxx = gradfindiff(lbox,ngrid,grad,1)
-    gradxy = gradfindiff(lbox,ngrid,grad,2)
-    gradxz = gradfindiff(lbox,ngrid,grad,3)
+    gradxx = GradFinDiff(lbox,ngrid,grad,1)
+    gradxy = GradFinDiff(lbox,ngrid,grad,2)
+    gradxz = GradFinDiff(lbox,ngrid,grad,3)
 
     # Y DIRECTION
     # 1st deriv
-    grad = gradfindiff(lbox,ngrid,arr,2)
+    grad = GradFinDiff(lbox,ngrid,arr,2)
     #2nd derivs
-    gradyy = gradfindiff(lbox,ngrid,grad,2)
-    gradyz = gradfindiff(lbox,ngrid,grad,3)
+    gradyy = GradFinDiff(lbox,ngrid,grad,2)
+    gradyz = GradFinDiff(lbox,ngrid,grad,3)
 
     # Z DIRECTION
     # 1st deriv
-    grad = gradfindiff(lbox,ngrid,arr,3)
+    grad = GradFinDiff(lbox,ngrid,arr,3)
     #2nd derivs
-    gradzz = gradfindiff(lbox,ngrid,grad,3)
+    gradzz = GradFinDiff(lbox,ngrid,grad,3)
 
     #del arr, grad
 
