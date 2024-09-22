@@ -1,11 +1,12 @@
 import numpy as np
 from numba import njit, prange
+import time
 
 # Realization number
 nreal = 1
 
 lbox = 1000.
-ngrid = 256
+ngrid = 128
 
 flux_filename = '...'
 
@@ -15,7 +16,7 @@ dtype = np.float64
 # Parameters for power spectrum computation
 convert_to_delta = False   # If ouput of webon, set to False, as webon produces already the overdensty field
 
-write_pk = True
+write_pk = False
 outpk = 'pk_rspace_recon_%d.txt' %nreal
 
 nbins_pk = ngrid//2
@@ -657,27 +658,45 @@ def write_pk(kk, pk, outpk):
 # **********************************************
 # MAIN
 
-# READ INPUT
+# Start timing 
+ti = time.time()
 
-flux = np.fromfile(flux_filename, dtype=dtype)
-flux = np.reshape(flux, (ngrid,ngrid,ngrid))
+# READ INPUT
+print('Reading input files ...')
+#flux = np.fromfile(flux_filename, dtype=dtype)
+#flux = np.reshape(flux, (ngrid,ngrid,ngrid))
 
 # Pass from flux to optical depth
-tau = -np.log10(flux)
+#tau = -np.log10(flux)
+
+tau = np.random.normal(0,1,size=(ngrid,ngrid,ngrid))
+
+print('... done!')
+print('')
 
 # Now rank-order the optical depth to a Gaussian field
 # First, create the Gaussina distribution (NB: it's a Gaussian distribution, NOT a Gaussian random field with a P(k))
+print('Rank-ordering the tau field to a Gaussian distribution')
 gausstg = np.random.normal(0., 1., size=ngrid**3)
 deltagauss = RankOrder(ngrid, tau, gausstg)
+print('... done!')
+print('')
 
 # Here, normalize by the biases in the CW environments
 # First perform the CWC of the gaussianised density field
+print('Computing T-web ...')
 tweb = Tweb(deltagauss, ngrid, lbox)
+print('... done!')
+print('')
 
 # Compute the displacement field
+print("Computing Zel'dovich displacements ...")
 psix, psiy, psiz = ZeldovichApproximation(ngrid, lbox, deltagauss, tweb, b1, b2, b3, b4, reconmode)
+print('... done!')
+print('')
 
 # Displace true "particles" (i.e. pixels)
+print('Applying the displacemets backward in time and computing the reconstructed field ...')
 xd, yd, zd = DisplaceParticles()
 deltad = GetCic(xd, yd, zd, tau, lbox, ngrid)
 
@@ -688,9 +707,31 @@ deltas = GetCic(xs, ys, zs, tau, lbox, ngrid)
 # Compute reconstructed density
 deltarec = deltad - deltas
 
+print('... done!')
+print('')
+
 # Compute power spectrum
+print('Measuring P(k) ...')
 kk, pk = measure_spectrum(deltarec)
 
 # Write power spectrum to file
 if write_pk==True:
+    print('... and writing P(k) to file ...')
     write_pk(kk,pk,outpk)
+
+print('... done!')
+print('')
+
+tf = time.time()
+dt = tf - ti
+
+uu = 'seconds'
+
+if dt>60.:
+    dt /= 60.
+    uu = 'minutes'
+    if dt > 60.:
+        dt /= 60.
+        uu = 'hours'
+
+print('The end. Elapsed ' + str(dt) + ' ' + uu + '.')
