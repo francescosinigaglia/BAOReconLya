@@ -45,17 +45,31 @@ rsdfact = 0.
 # **********************************************
 # **********************************************
 def fft(inarr,ngrid):
+
+    """
+    @ Define FFTs and allow to change normalization 
+    """
+
     finarr= np.fft.fftn(inarr)
 
     return finarr
 
 def ifft(finarr,ngrid):
+
+    """
+    @ Define iFFTs and allow to change normalization 
+    """
+
     inarr= np.fft.ifftn(finarr)
 
     return inarr
 
 # **********************************************
 def measure_spectrum(signal):
+
+    """
+    @ Measure the 3D power spectrum - this is a containter for the non-numbizable (i.e. FFTs) part 
+    """
 
     nbin = int(round(nbins_pk))
     
@@ -76,6 +90,10 @@ def measure_spectrum(signal):
 # **********************************************                                                                                         
 @njit(parallel=False, cache=True)
 def get_power(fsignal, Nbin, kmax, dk, kmode, power, nmode):
+
+    """
+    @ Compute power in Fourier space, performing a loop over cells 
+    """
     
     for i in prange(ngrid):
         for j in prange(ngrid):
@@ -100,57 +118,69 @@ def get_power(fsignal, Nbin, kmax, dk, kmode, power, nmode):
 
 @njit(cache=True)
 def k_squared_nohermite(lbox,ngrid,ii,jj,kk):
+      
+    """
+    @ Compute k^2 in Fourier space, taking care of the ordering of Fourier-space arrays without expliting hermiticity
+    """
 
-      kfac = 2.0*np.pi/lbox
+    kfac = 2.0*np.pi/lbox
 
-      if ii <= ngrid/2:
+    if ii <= ngrid/2:
         kx = kfac*ii
-      else:
+    else:
         kx = -kfac*(ngrid-ii)
 
-      if jj <= ngrid/2:
+    if jj <= ngrid/2:
         ky = kfac*jj
-      else:
+    else:
         ky = -kfac*(ngrid-jj)
 
-      if kk <= ngrid/2:
+    if kk <= ngrid/2:
           kz = kfac*kk
-      else:
+    else:
           kz = -kfac*(ngrid-kk)                                                                                                           
 
-      k2 = kx**2+ky**2+kz**2
+    k2 = kx**2+ky**2+kz**2
 
-      return k2
+    return k2
 
 # **********************************************
 @njit(cache=True)
 def k_squared(lbox,ngrid,ii,jj,kk):
     
-      kfac = 2.0*np.pi/lbox
+    """
+    @ Compute k^2 in Fourier space, taking care of the ordering of Fourier-space arrays and explioting hermiticity 
+    """
 
-      if ii <= ngrid/2:
+    kfac = 2.0*np.pi/lbox
+
+    if ii <= ngrid/2:
         kx = kfac*ii
-      else:
+    else:
         kx = -kfac*(ngrid-ii)
       
-      if jj <= ngrid/2:
+    if jj <= ngrid/2:
         ky = kfac*jj
-      else:
+    else:
         ky = -kfac*(ngrid-jj)
       
-      #if kk <= nc/2:
-      kz = kfac*kk
-      #else:
-      #  kz = -kfac*np.float64(nc-k)
+    #if kk <= nc/2:
+    kz = kfac*kk
+    #else:
+    #  kz = -kfac*np.float64(nc-k)
       
-      k2 = kx**2+ky**2+kz**2
+    k2 = kx**2+ky**2+kz**2
 
-      return k2
+    return k2
 
 
 # **********************************************
 @njit(parallel=True, cache=True)
 def GradFinDiff(lbox,ngrid,arr,dim):
+
+    '''
+    @ Compute gradients using finite differences (5-point stencil) 
+    '''
 
     fac = ngrid/(2*lbox)
 
@@ -267,6 +297,10 @@ def GradFinDiff(lbox,ngrid,arr,dim):
 @njit(parallel=True, cache=True)
 def Tweb(arr, ngrid, lbox):
 
+    '''
+    @ Perform the T-web classification (Hahn et al. 2008) 
+    '''
+
     # Get gradients exploiting simmetry of the tensor, i.e. gradxy=gradyx
 
     # X DIRECTION
@@ -331,6 +365,10 @@ def Tweb(arr, ngrid, lbox):
 @njit(parallel=True, cache=True, fastmath=True)
 def RankOrder(ngrid, arrin, arrtg):
 
+    '''
+    @ Rank-order an input array to a target distribution 
+    '''
+
     arrin = arrin.flatten()
 
     # Prepare the fields
@@ -353,7 +391,7 @@ def RankOrder(ngrid, arrin, arrtg):
 def ZeldovichApproximation(ngrid, lbox, delta, tweb, ff, b1, b2, b3, b4, reconmode):
 
     '''
-    @ Compute the displacement field using the Zel'dovich approximation
+    @ Compute the displacement field using the Zel'dovich approximation (contain the Numba function)
     '''
 
     deltaf = fft(delta, ngrid**3)
@@ -370,6 +408,10 @@ def ZeldovichApproximation(ngrid, lbox, delta, tweb, ff, b1, b2, b3, b4, reconmo
 
 @njit(parallel=True, cache=True)
 def Zeldovich_loop_numba(ngrid, lbox, deltaf, kfac, tweb, ff, b1, b2, b3, b4, reconmode):
+
+    """
+    @ Core Numba function to compute the displacement field using the Zel'dovich approximation 
+    """
 
     # reconmode = 0 ---> isotropic (Padmanabhan et al. 2012)
     # reconmode = 1 ---> isotropic (Eisenstein et al. 2007)
@@ -455,6 +497,10 @@ def Zeldovich_loop_numba(ngrid, lbox, deltaf, kfac, tweb, ff, b1, b2, b3, b4, re
 @njit(cache=True)
 def get_kpar_kper(lbox,ngrid,ii,jj,kk):
 
+    """
+    @ Compute k_par and k_per in Fourier space cell by cell
+    """
+
     kfac = 2.0*np.pi/lbox
 
     if ii <= ngrid/2:
@@ -485,6 +531,10 @@ def get_kpar_kper(lbox,ngrid,ii,jj,kk):
 # **********************************************
 @njit(parallel=False, cache=True, fastmath=True)
 def GetCic(posx, posy, posz, weight, lbox, ngrid):
+
+    """
+    @ Interpolate particles onto grid using a Cloud-In-Cell (CIC) scheme 
+    """
 
     weight = weight.flatten()
 
@@ -559,6 +609,10 @@ def GetCic(posx, posy, posz, weight, lbox, ngrid):
 @njit(parallel=False, cache=True, fastmath=True)
 def DisplaceParticles(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, reconmode, rsdfact):
 
+    """
+    @ Displace true particles in BAO reconstruction using the compute displacements
+    """
+
     # CONVENTION: the Zel'dovich displacement have been computed in the forward direction, hence we will subtract them 
 
     # reconmode = 0 ---> isotropic (Padmanabhan et al. 2012)
@@ -608,6 +662,10 @@ def DisplaceParticles(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, r
 @njit(parallel=False, cache=True, fastmath=True)
 def DisplaceRandoms(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, reconmode, rsdfact):
 
+    """
+    @ Displace random particles in BAO reconstruction using the compute displacements
+    """
+
     # CONVENTION: the Zel'dovich displacement have been computed in the forward direction, hence we will subtract them  
     
     # reconmode = 0 ---> isotropic (Padmanabhan et al. 2012)
@@ -655,6 +713,10 @@ def DisplaceRandoms(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, rec
 
 # **********************************************
 def write_pk(kk, pk, outpk):
+
+    """
+    @ Write the 3D P(k) to file
+    """
 
     ff = open(outpk, 'w')
 
