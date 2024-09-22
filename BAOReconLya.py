@@ -1,12 +1,13 @@
 import numpy as np
 from numba import njit, prange
 import time
+import numba as nb
 
 # Realization number
 nreal = 1
 
 lbox = 1000.
-ngrid = 128
+ngrid = 256
 
 flux_filename = '...'
 
@@ -36,6 +37,9 @@ los = 2
 
 # Reconstruction mode (0: isotropic; 1: anistropic)
 reconmode = 0
+
+# Enable RSD? 0 if real space, 1 if redshift space. Other values for redshift space introduce velocity bias
+rsdfact = 0.
 
 # **********************************************
 # **********************************************
@@ -347,7 +351,7 @@ def RankOrder(ngrid, arrin, arrtg):
 
 # **********************************************
 def ZeldovichApproximation(ngrid, lbox, delta, tweb, ff, b1, b2, b3, b4, reconmode):
-    
+
     '''
     @ Compute the displacement field using the Zel'dovich approximation
     '''
@@ -370,22 +374,22 @@ def Zeldovich_loop_numba(ngrid, lbox, deltaf, kfac, tweb, ff, b1, b2, b3, b4, re
     # reconmode = 0 ---> isotropic (Padmanabhan et al. 2012)
     # reconmode = 1 ---> isotropic (Eisenstein et al. 2007)
 
-    psixf = np.zeros((ngrid,ngrid,ngrid))
-    psiyf = np.zeros((ngrid,ngrid,ngrid))
-    psizf = np.zeros((ngrid,ngrid,ngrid))
+    psixf = np.zeros((ngrid,ngrid,ngrid), dtype=nb.complex128)
+    psiyf = np.zeros((ngrid,ngrid,ngrid), dtype=nb.complex128)
+    psizf = np.zeros((ngrid,ngrid,ngrid), dtype=nb.complex128)
 
     for ii in prange(ngrid):
         for jj in range(ngrid):
             for kk in range(ngrid):
 
                 # Find Tweb-dependent bias parameters
-                if tweb[ii,jj,kk] == 1:
+                if tweb[ii,jj,kk] == 1.:
                     bb = b1
-                elif tweb[ii,jj,kk] == 2:
+                elif tweb[ii,jj,kk] == 2.:
                     bb = b2
-                elif tweb[ii,jj,kk] == 3:
+                elif tweb[ii,jj,kk] == 3.:
                     bb = b3
-                elif tweb[ii,jj,kk] == 4:
+                elif tweb[ii,jj,kk] == 4.:
                     bb = b4
 
                 # Compute mu
@@ -482,11 +486,13 @@ def get_kpar_kper(lbox,ngrid,ii,jj,kk):
 @njit(parallel=False, cache=True, fastmath=True)
 def GetCic(posx, posy, posz, weight, lbox, ngrid):
 
+    weight = weight.flatten()
+
     lcell = lbox/ngrid
 
     delta = np.zeros((ngrid,ngrid,ngrid))
 
-    for ii in prange(len(posx)):
+    for ii in range(len(posx)):
         xx = posx[ii]
         yy = posy[ii]
         zz = posz[ii]
@@ -551,7 +557,7 @@ def GetCic(posx, posy, posz, weight, lbox, ngrid):
 
 # **********************************************
 @njit(parallel=False, cache=True, fastmath=True)
-def DisplaceParticles(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
+def DisplaceParticles(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, reconmode, rsdfact):
 
     # CONVENTION: the Zel'dovich displacement have been computed in the forward direction, hence we will subtract them 
 
@@ -575,13 +581,13 @@ def DisplaceParticles(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
                 ind3d = kk + ngrid*(jj + ngrid*ii)
 
                 # Find Tweb-dependent bias parameters
-                if tweb[ii,jj,kk] == 1:
+                if tweb[ii,jj,kk] == 1.:
                     bb = b1
-                elif tweb[ii,jj,kk] == 2:
+                elif tweb[ii,jj,kk] == 2.:
                     bb = b2
-                elif tweb[ii,jj,kk] == 3:
+                elif tweb[ii,jj,kk] == 3.:
                     bb = b3
-                elif tweb[ii,jj,kk] == 4:
+                elif tweb[ii,jj,kk] == 4.:
                     bb = b4
 
                 beta = ff / bb
@@ -594,13 +600,13 @@ def DisplaceParticles(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
                 # Displace particles
                 posx[ind3d] = posxtmp - psix[ii,jj,kk] 
                 posy[ind3d] = posytmp - psiy[ii,jj,kk] 
-                posz[ind3d] = posztmp - (1. + fact) * psiz[ii,jj,kk]  
+                posz[ind3d] = posztmp - (1. + rsdfact * fact) * psiz[ii,jj,kk]  
 
     return posx, posy, posz
 
 # **********************************************
 @njit(parallel=False, cache=True, fastmath=True)
-def DisplaceRandoms(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
+def DisplaceRandoms(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, reconmode, rsdfact):
 
     # CONVENTION: the Zel'dovich displacement have been computed in the forward direction, hence we will subtract them  
     
@@ -624,13 +630,13 @@ def DisplaceRandoms(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
                 ind3d = kk + ngrid*(jj + ngrid*ii)
 
                 # Find Tweb-dependent bias parameters
-                if tweb[ii,jj,kk] == 1:
+                if tweb[ii,jj,kk] == 1.:
                     bb = b1
-                elif tweb[ii,jj,kk] == 2:
+                elif tweb[ii,jj,kk] == 2.:
                     bb = b2
-                elif tweb[ii,jj,kk] == 3:
+                elif tweb[ii,jj,kk] == 3.:
                     bb = b3
-                elif tweb[ii,jj,kk] == 4:
+                elif tweb[ii,jj,kk] == 4.:
                     bb = b4
 
                 beta = ff / bb
@@ -643,7 +649,7 @@ def DisplaceRandoms(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode):
                 # Displace particles
                 posx[ind3d] = posxtmp - psix[ii,jj,kk] 
                 posy[ind3d] = posytmp - psiy[ii,jj,kk] 
-                posz[ind3d] = posztmp - (1. + fact) * psiz[ii,jj,kk]  
+                posz[ind3d] = posztmp - (1. + rsdfact * fact) * psiz[ii,jj,kk]  
 
     return posx, posy, posz
 
@@ -680,7 +686,7 @@ print('')
 
 # Now rank-order the optical depth to a Gaussian field
 # First, create the Gaussina distribution (NB: it's a Gaussian distribution, NOT a Gaussian random field with a P(k))
-print('Rank-ordering the tau field to a Gaussian distribution')
+print('Rank-ordering the tau field to a Gaussian distribution ...')
 gausstg = np.random.normal(0., 1., size=ngrid**3)
 deltagauss = RankOrder(ngrid, tau, gausstg)
 print('... done!')
@@ -695,17 +701,17 @@ print('')
 
 # Compute the displacement field
 print("Computing Zel'dovich displacements ...")
-psix, psiy, psiz = ZeldovichApproximation(ngrid, lbox, deltagauss, tweb, b1, b2, b3, b4, reconmode)
+psix, psiy, psiz = ZeldovichApproximation(ngrid, lbox, deltagauss, tweb, ff, b1, b2, b3, b4, reconmode)
 print('... done!')
 print('')
 
 # Displace true "particles" (i.e. pixels)
 print('Applying the displacemets backward in time and computing the reconstructed field ...')
-xd, yd, zd = DisplaceParticles(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode)
+xd, yd, zd = DisplaceParticles(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, reconmode, rsdfact)
 deltad = GetCic(xd, yd, zd, tau, lbox, ngrid)
 
 # Displace random particles
-xs, ys, zs = DisplaceRandoms(psix, psiy, psiz, ff, b1, b2, b3, b4, reconmode)
+xs, ys, zs = DisplaceRandoms(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, reconmode, rsdfact)
 deltas = GetCic(xs, ys, zs, tau, lbox, ngrid)
 
 # Compute reconstructed density
