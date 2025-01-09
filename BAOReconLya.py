@@ -564,7 +564,8 @@ def GetCic(posx, posy, posz, weight, lbox, ngrid):
             indxl = indxc + 1
             if indxl>=ngrid:
                 indxl -= ngrid
-            wxl = 1 - wxc
+            wxl = wxc - 0.5
+            wxc = 1 - wxl
 
         if wyc <=0.5:
             indyl = indyc - 1
@@ -576,7 +577,8 @@ def GetCic(posx, posy, posz, weight, lbox, ngrid):
             indyl = indyc + 1
             if indyl>=ngrid:
                 indyl -= ngrid
-            wyl = 1 - wyc
+            wyl = wyc - 0.5
+            wyc = 1 - wyl
 
         if wzc <=0.5:
             indzl = indzc - 1
@@ -588,7 +590,8 @@ def GetCic(posx, posy, posz, weight, lbox, ngrid):
             indzl = indzc + 1
             if indzl>=0:
                 indzl -= ngrid
-            wzl = 1 - wzc
+            wzl = wzc - 0.5
+            wzc = 1 - wzl
 
         ww = weight[ii]
 
@@ -654,7 +657,7 @@ def DisplaceParticles(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, r
                 # Displace particles
                 posx[ind3d] = posxtmp - psix[ii,jj,kk] 
                 posy[ind3d] = posytmp - psiy[ii,jj,kk] 
-                posz[ind3d] = posztmp - (1. + rsdfact * fact) * psiz[ii,jj,kk]  
+                posz[ind3d] = posztmp - (1. - rsdfact * fact) * psiz[ii,jj,kk]  
 
     return posx, posy, posz
 
@@ -707,7 +710,7 @@ def DisplaceRandoms(ngrid, lbox, psix, psiy, psiz, tweb, ff, b1, b2, b3, b4, rec
                 # Displace particles
                 posx[ind3d] = posxtmp - psix[ii,jj,kk] 
                 posy[ind3d] = posytmp - psiy[ii,jj,kk] 
-                posz[ind3d] = posztmp - (1. + rsdfact * fact) * psiz[ii,jj,kk]  
+                posz[ind3d] = posztmp - (1. - rsdfact * fact) * psiz[ii,jj,kk]  
 
     return posx, posy, posz
 
@@ -735,13 +738,11 @@ ti = time.time()
 
 # READ INPUT
 print('Reading input files ...')
-#flux = np.fromfile(flux_filename, dtype=dtype)
-#flux = np.reshape(flux, (ngrid,ngrid,ngrid))
+flux = np.fromfile(flux_filename, dtype=dtype)
+flux = np.reshape(flux, (ngrid,ngrid,ngrid))
 
 # Pass from flux to optical depth
-#tau = -np.log10(flux)
-
-tau = np.random.normal(0,1,size=(ngrid,ngrid,ngrid))
+tau = -np.log10(flux)
 
 print('... done!')
 print('')
